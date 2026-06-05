@@ -32,6 +32,11 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def abs_path_str(path: str | Path) -> str:
+    """Absolute path string for APIs (RLlib, subprocess) that require ``str``."""
+    return str(Path(path).resolve())
+
+
 def configs_dir() -> Path:
     return repo_root() / "configs"
 

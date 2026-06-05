@@ -149,7 +149,7 @@ class CassieEnv(MujocoEnv):
 
         MujocoEnv.__init__(
             self,
-            model_path=str(Path(model_dir).absolute() / f"{self.model_file}.xml"),
+            model_path=str(Path(model_dir).resolve() / f"{self.model_file}.xml"),
             frame_skip=frame_skip,
             render_mode="rgb_array",
             observation_space=observation_space,

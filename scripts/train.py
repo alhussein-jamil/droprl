@@ -14,7 +14,7 @@ from typing import Any
 import ray
 from ray.rllib.algorithms.ppo import PPOConfig
 
-from droprl.config import list_tasks, list_train_configs, load_experiment
+from droprl.config import abs_path_str, list_tasks, list_train_configs, load_experiment
 from droprl.logging import setup_logging
 from droprl.rllib.lr_schedule import (
     apply_lr_to_trainer,
@@ -101,12 +101,13 @@ def _build_ppo(cfg: dict[str, Any], *, task: str):
     return builder.build_algo()
 
 
-def _logger_creator(logdir: str | None):
+def _logger_creator(logdir: Path | str | None):
     def _creator(config):
         if not logdir:
-            return TrainLogger(config, Path.cwd().as_posix(), trial=None)
-        Path(logdir).mkdir(parents=True, exist_ok=True)
-        return TrainLogger(config, str(logdir), trial=None)
+            return TrainLogger(config, abs_path_str(Path.cwd()), trial=None)
+        log_path = Path(logdir)
+        log_path.mkdir(parents=True, exist_ok=True)
+        return TrainLogger(config, abs_path_str(log_path), trial=None)
 
     return _creator
 
@@ -124,13 +125,13 @@ def _spawn_render(
     output = sim_dir / f"run_{label}.mp4"
     cmd = [
         sys.executable,
-        str(Path(__file__).resolve().parent / "render.py"),
+        abs_path_str(Path(__file__).resolve().parent / "render.py"),
         "--task",
         task,
         "--train",
         train,
         "--checkpoint",
-        str(checkpoint.resolve()),
+        abs_path_str(checkpoint),
         "--output",
         str(output),
     ]
@@ -192,7 +193,7 @@ def main() -> int:
     training_section.setdefault("environment", {})
     training_section["environment"]["env"] = chosen_env_id
     training_section["environment"]["env_config"] = env_cfg
-    training_section["logdir"] = str(logdir)
+    training_section["logdir"] = abs_path_str(logdir)
 
     ray_cfg = resolve_ray_config(config.get("ray", {}))
     ray.init(

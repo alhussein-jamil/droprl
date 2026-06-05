@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from droprl.config import abs_path_str
+
 CHECKPOINT_LATEST = "checkpoint_latest"
 CHECKPOINT_BEST = "checkpoint_best"
 STATE_FILE = "training_state.json"
@@ -107,7 +109,7 @@ def save_checkpoint(
     """Save an RLlib Algorithm checkpoint into `dest` (replacing it)."""
     training_iteration = _algo_training_iteration(algo, loop_iteration=loop_iteration)
     _replace_dir(dest)
-    algo.save(checkpoint_dir=str(dest.resolve()))
+    algo.save(checkpoint_dir=abs_path_str(dest))
     _write_checkpoint_meta(dest, training_iteration=training_iteration)
     try:
         from droprl.rllib.loader import save_policy_artifacts
@@ -264,12 +266,10 @@ def resolve_render_paths(
 
 def restore_checkpoint(algo: Any, checkpoint: Path) -> bool:
     """Restore an RLlib algorithm from a full RLlib checkpoint directory."""
-    import os
-
     from droprl.rllib.loader import is_rllib_checkpoint
 
     if not is_rllib_checkpoint(checkpoint):
         return False
 
-    algo.restore(os.path.abspath(checkpoint.resolve()))
+    algo.restore(abs_path_str(checkpoint))
     return True

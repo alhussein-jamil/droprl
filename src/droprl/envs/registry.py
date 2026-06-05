@@ -11,6 +11,7 @@ from typing import Any
 
 import gymnasium as gym
 
+from droprl.config import abs_path_str
 from droprl.envs.base import BaseEnv, GymAdapterEnv
 
 log = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ def list_envs() -> list[str]:
 
 
 def _load_module_from_path(module_name: str, path: Path) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(module_name, str(path))
+    spec = importlib.util.spec_from_file_location(module_name, abs_path_str(path))
     if spec is None or spec.loader is None:
         raise ImportError(f"Cannot import {module_name} from {path}")
     module = importlib.util.module_from_spec(spec)

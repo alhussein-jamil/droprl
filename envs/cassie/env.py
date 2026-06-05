@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Any
 
 _ENV_DIR = Path(__file__).resolve().parent
-if str(_ENV_DIR) not in sys.path:
-    sys.path.insert(0, str(_ENV_DIR))
+_ENV_DIR_STR = str(_ENV_DIR)
+if _ENV_DIR_STR not in sys.path:
+    sys.path.insert(0, _ENV_DIR_STR)
 
 ENV_ID = "cassie-v0"
 MODEL_DIR = _ENV_DIR / "assets" / "model"

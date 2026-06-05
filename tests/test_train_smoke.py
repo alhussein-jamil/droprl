@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
+from os import environ
 from pathlib import Path
 
 import pytest
@@ -17,11 +17,10 @@ def _run_train_smoke(
     train: str,
     run_name: str,
 ) -> None:
-    env = os.environ.copy()
-    env["RAY_DISABLE_IMPORT_WARNING"] = "1"
+    env = {**environ, "RAY_DISABLE_IMPORT_WARNING": "1"}
     cmd = [
         sys.executable,
-        str(REPO / "scripts" / "train.py"),
+        str((REPO / "scripts" / "train.py").resolve()),
         "--task",
         task,
         "--train",
