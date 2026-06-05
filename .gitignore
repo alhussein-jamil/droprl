@@ -12,8 +12,8 @@ build/
 .coverage
 htmlcov/
 
-# Training outputs
-runs/
+# Training outputs (repo root only — not src/droprl/runs/)
+/runs/
 
 # Media / checkpoints (local only)
 *.mp4
