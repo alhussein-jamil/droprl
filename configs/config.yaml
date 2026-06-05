@@ -1,0 +1,27 @@
+# Global defaults.
+
+ray:
+  num_cpus: auto
+  include_dashboard: false
+
+run:
+  iters: 20
+  chkpt_freq: 2400
+  chkpt_every_iters: 250
+  render_every: 600
+  render_on_best: false
+  resume_warmup_log_iters: 20
+  render_fps: 30
+  sim_fps: 30
+  render_max_steps: 10000
+  dynamic_lr:
+    enabled: false
+    min_lr_ratio: 0.01
+    max_lr_ratio: 1.0
+    window_iters: 300
+    plateau_rel_improvement: 0.015
+    breakthrough_rel_improvement: 0.08
+    min_reward_scale: 1.0
+    decay_factor: 0.75
+    boost_factor: 1.15
+    cooldown_iters: 250

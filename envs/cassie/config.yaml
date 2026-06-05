@@ -1,0 +1,36 @@
+# Task config for envs/cassie (passed to make_env as env_config).
+config:
+  is_training: true
+  symmetric_regulation: alternate
+  dt_per_cycle: 0.5
+  r: 0.6
+  kappa: 20
+  command: [1.0, 0.0]
+  terminate_when_unhealthy: true
+  max_simulation_time: 30
+  pelvis_height: [0.4, 1.25]
+  feet_distance_x: 1.0
+  feet_distance_y: 1.0
+  feet_distance_z: 1.0
+  feet_pelvis_height: 0.15
+  max_roll: 0.5
+  max_pitch: 0.5
+  max_yaw: 10.0
+  feet_height: 0.10
+  require_grounded_after_first_contact: true
+  model: cassie
+  sim_fps: 100
+  render_mode: rgb_array
+  width: 1920
+  height: 1080
+  reset_noise_scale: 0.08
+  reset_noise_vel_scale: 0.0
+  force_max_norm: 10.0
+  push_prob_per_second: 0.2
+  push_duration: 0.5
+  action_filter_alpha: 0.8
+  r_bias: -0.1
+  r_biped: 0.3
+  r_feet_parallel: 0.1
+  r_cmd: 1.0
+  r_smooth: 0.6

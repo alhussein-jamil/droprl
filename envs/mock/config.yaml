@@ -1,0 +1,5 @@
+# Task config for envs/mock (passed to make_env).
+config:
+  horizon: 50
+  target: 0
+  start: 5

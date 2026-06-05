@@ -1,0 +1,80 @@
+ray:
+  num_gpus: 1
+
+run:
+  render_fps: 30
+  render_debug: true
+  debug_history_seconds: 8.0
+  debug_panel_width: 800
+  debug_hud_font_scale: 0.45
+  debug_hud_thickness: 1
+  render_every: 600
+  render_on_best: false
+  render_showcase_on_best: false
+  chkpt_freq: 2400
+  chkpt_every_iters: 250
+  resume_warmup_log_iters: 20
+  epochs: 50000000
+  dynamic_lr:
+    enabled: true
+    min_lr_ratio: 0.01
+    max_lr_ratio: 1.0
+    window_iters: 300
+    plateau_rel_improvement: 0.015
+    breakthrough_rel_improvement: 0.08
+    min_reward_scale: 1.0
+    decay_factor: 0.75
+    boost_factor: 1.15
+    cooldown_iters: 250
+
+training:
+  environment:
+    clip_actions: true
+    normalize_actions: true
+    render_env: false
+  env_runners:
+    enable_tf1_exec_eagerly: true
+    num_env_runners: auto
+    num_envs_per_env_runner: 8
+    rollout_fragment_length: auto
+    batch_mode: truncate_episodes
+    observation_filter: MeanStdFilter
+  training:
+    gamma: 0.99
+    grad_clip: 1.0
+    grad_clip_by: global_norm
+    train_batch_size: 32768
+    model:
+      fcnet_hiddens: [256, 256]
+      fcnet_activation: elu
+      fcnet_weights_initializer: xavier_uniform_
+      fcnet_bias_initializer: zeros
+      post_fcnet_activation: elu
+      free_log_std: true
+      vf_share_layers: false
+    optimizer:
+      type: adam
+    lr: 1.0e-3
+    use_critic: true
+    use_gae: true
+    lambda_: 0.92
+    use_kl_loss: true
+    kl_coeff: 0.12
+    kl_target: 0.012
+    minibatch_size: 2048
+    num_epochs: 8
+    shuffle_batch_per_epoch: true
+    vf_loss_coeff: 0.5
+    entropy_coeff: 0.002
+    clip_param: 0.3
+    vf_clip_param: 10.0
+  framework:
+    framework: torch
+    torch_compile_worker_dynamo_backend: ipex
+    torch_compile_worker_dynamo_mode: max-autotune
+  resources:
+    num_gpus: 1
+  fault_tolerance:
+    restart_failed_env_runners: true
+    ignore_env_runner_failures: false
+    restart_failed_sub_environments: true

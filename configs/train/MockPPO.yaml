@@ -1,0 +1,24 @@
+run:
+  render_every: 600
+
+training:
+  environment:
+    clip_actions: true
+    normalize_actions: false
+  env_runners:
+    num_env_runners: auto
+    num_envs_per_env_runner: 2
+    rollout_fragment_length: auto
+    batch_mode: truncate_episodes
+  training:
+    gamma: 0.99
+    lr: 5.0e-4
+    train_batch_size: 8192
+    minibatch_size: 256
+    num_epochs: 3
+    clip_param: 0.2
+    entropy_coeff: 0.01
+  framework:
+    framework: torch
+  resources:
+    num_gpus: 0

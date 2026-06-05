@@ -1,0 +1,3 @@
+# Task parameters passed to make_env() as env_config.
+config:
+  example_param: 1.0
