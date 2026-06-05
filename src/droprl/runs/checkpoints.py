@@ -110,9 +110,9 @@ def save_checkpoint(
     algo.save(checkpoint_dir=str(dest.resolve()))
     _write_checkpoint_meta(dest, training_iteration=training_iteration)
     try:
-        from droprl.rllib.loader import save_policy_weights
+        from droprl.rllib.loader import save_policy_artifacts
 
-        save_policy_weights(algo, dest)
+        save_policy_artifacts(algo, dest)
     except Exception:
         pass
     return dest
@@ -263,22 +263,13 @@ def resolve_render_paths(
 
 
 def restore_checkpoint(algo: Any, checkpoint: Path) -> bool:
-    """Restore an RLlib algorithm from checkpoint_latest (with npz fallback)."""
+    """Restore an RLlib algorithm from a full RLlib checkpoint directory."""
     import os
 
-    import numpy as np
+    from droprl.rllib.loader import is_rllib_checkpoint
 
-    if not is_usable_checkpoint(checkpoint):
+    if not is_rllib_checkpoint(checkpoint):
         return False
 
-    ckpt = checkpoint.resolve()
-    try:
-        algo.restore(os.path.abspath(ckpt))
-        return True
-    except Exception:
-        npz = checkpoint / POLICY_WEIGHTS_FILE
-        if not npz.is_file():
-            raise
-        weights = {k: arr for k, arr in np.load(npz).items()}
-        algo.get_policy().set_weights(weights)
-        return True
+    algo.restore(os.path.abspath(checkpoint.resolve()))
+    return True

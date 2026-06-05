@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from droprl.config import repo_root
+from droprl.rllib.runtime import ensure_task_path
 
 CALLBACKS_FILE = "callbacks.py"
 CALLBACKS_CLASS = "Callbacks"
@@ -13,13 +14,6 @@ CALLBACKS_CLASS = "Callbacks"
 
 def _task_dir(task: str) -> Path:
     return repo_root() / "envs" / task
-
-
-def _ensure_task_path(task: str) -> Path:
-    env_dir = _task_dir(task)
-    if str(env_dir) not in sys.path:
-        sys.path.insert(0, str(env_dir))
-    return env_dir
 
 
 def _load_module_from_path(module_name: str, path: Path) -> Any:
@@ -41,7 +35,7 @@ def load_task_symbol(task: str, qualname: str) -> type:
         raise ValueError(f"Expected dotted path module.Class, got {qualname!r}")
 
     module_name, attr_name = qualname.rsplit(".", 1)
-    env_dir = _ensure_task_path(task)
+    env_dir = ensure_task_path(task)
     module_path = env_dir / f"{module_name}.py"
     if not module_path.is_file():
         raise FileNotFoundError(f"Task module not found: {module_path}")

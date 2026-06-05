@@ -10,13 +10,13 @@ import mediapy as media
 import numpy as np
 import ray
 from ray.rllib.algorithms.ppo import PPO
-from ray.rllib.connectors.agent.synced_filter import SyncedFilterAgentConnector
+from ray.rllib.connectors.agent.mean_std_filter import MeanStdObservationFilterAgentConnector
 from ray.rllib.utils.typing import ActionConnectorDataType, AgentConnectorDataType
 
 from droprl.envs.base import BaseEnv
 from droprl.envs.registry import load_env
 from droprl.rllib.env_wrapper import RllibGymWrapper
-from droprl.rllib.loader import load_ppo_trainer
+from droprl.rllib.loader import build_ppo_trainer, load_policy_artifacts
 from droprl.rllib.registry import register_rllib_envs
 from droprl.runs.checkpoints import is_usable_checkpoint
 
@@ -31,14 +31,15 @@ def _to_gym_env(env_obj: Any) -> gym.Env:
     raise TypeError(f"Unsupported env type for render: {type(env_obj).__name__}")
 
 
-def _get_filter_connector(policy):
-    if not getattr(policy, "agent_connectors", None):
+def _obs_filter(policy) -> MeanStdObservationFilterAgentConnector | None:
+    connectors = getattr(policy, "agent_connectors", None)
+    if connectors is None:
         return None
-    connectors = policy.agent_connectors[SyncedFilterAgentConnector]
-    return connectors[0] if connectors else None
+    found = connectors[MeanStdObservationFilterAgentConnector]
+    return found[0] if found else None
 
 
-def _apply_filter(filter_conn, obs):
+def _apply_obs_filter(filter_conn: MeanStdObservationFilterAgentConnector | None, obs):
     if filter_conn is None:
         return obs
     acd = AgentConnectorDataType(env_id="eval", agent_id=0, data={"obs": obs})
@@ -67,7 +68,7 @@ def rollout_frames(
     sim_fps: int,
 ) -> list[np.ndarray]:
     policy = trainer.get_policy()
-    filter_conn = _get_filter_connector(policy)
+    obs_filter = _obs_filter(policy)
     sim_steps_per_frame = max(1, int(round(sim_fps / float(render_fps))))
 
     obs, _ = env.reset()
@@ -77,7 +78,7 @@ def rollout_frames(
     next_capture = 0
 
     while not (terminated or truncated) and step < max_steps:
-        obs_in = _apply_filter(filter_conn, obs)
+        obs_in = _apply_obs_filter(obs_filter, obs)
         raw_action, states, fetches = policy.compute_single_action(obs_in, explore=False)
         action = _apply_action_connectors(policy, raw_action, states, fetches)
         obs, _reward, terminated, truncated, _info = env.step(action)
@@ -133,7 +134,8 @@ def render_checkpoint(
     training_section["environment"]["env"] = env_map[env_name]
     training_section["environment"]["env_config"] = env_cfg
 
-    trainer = load_ppo_trainer(training_section, checkpoint)
+    trainer = build_ppo_trainer(training_section)
+    load_policy_artifacts(trainer, checkpoint)
     env = _to_gym_env(load_env(env_name, env_cfg))
     if hasattr(env, "render_mode"):
         env.render_mode = "rgb_array"
