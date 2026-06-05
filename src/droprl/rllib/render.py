@@ -127,7 +127,7 @@ def render_checkpoint(
 
     training_section = deepcopy(config.get("training", {}))
     training_section.setdefault("environment", {})
-    env_map = register_rllib_envs()
+    env_map = register_rllib_envs(tasks=[env_name])
     if env_name not in env_map:
         raise ValueError(f"Unknown env '{env_name}'. Available: {sorted(env_map)}")
     training_section["environment"]["env"] = env_map[env_name]

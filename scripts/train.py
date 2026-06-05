@@ -170,7 +170,7 @@ def main() -> int:
     runs_root = Path(args.output)
     runs_root.mkdir(parents=True, exist_ok=True)
 
-    env_map = register_rllib_envs()
+    env_map = register_rllib_envs(tasks=[args.task])
     if args.task not in env_map:
         raise SystemExit(f"Unknown task '{args.task}'. Available: {sorted(env_map)}")
 
