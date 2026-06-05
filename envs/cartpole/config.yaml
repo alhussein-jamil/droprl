@@ -1,4 +1,4 @@
-# Standard Gymnasium env (no extra requirements.txt needed).
+# Standard Gymnasium env — pygame via gymnasium[classic-control] in core deps.
 config:
   gym_id: CartPole-v1
   render_mode: rgb_array

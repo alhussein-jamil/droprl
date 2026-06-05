@@ -1,4 +1,4 @@
-.PHONY: install install-env install-all train clean-train render tensorboard \
+.PHONY: install install-dev install-env install-all train clean-train render tensorboard \
 	lint format test pre-commit-install help
 
 PYTHON ?= python3.10
@@ -21,7 +21,10 @@ PORT ?= 6006
 install:
 	$(PYTHON) -m venv $(VENV)
 	$(PIP) install -U pip
-	$(PIP) install -r requirements.txt
+	$(PIP) install -e .
+
+install-dev: install
+	$(PIP) install -e ".[dev]"
 
 install-env: install
 	@test -f envs/$(TASK)/requirements.txt || \
@@ -56,31 +59,31 @@ tensorboard:
 	$(TENSORBOARD) --logdir $(LOGDIR) --port $(PORT) --bind_all
 
 lint:
-	@test -x "$(RUFF)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
+	@test -x "$(RUFF)" || (echo "Run: make install-dev" && exit 1)
 	$(RUFF) check src scripts tests envs/mock envs/cartpole
 	$(RUFF) format --check src scripts tests envs/mock envs/cartpole
 
 format:
-	@test -x "$(RUFF)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
+	@test -x "$(RUFF)" || (echo "Run: make install-dev" && exit 1)
 	$(RUFF) check --fix src scripts tests envs/mock envs/cartpole
 	$(RUFF) format src scripts tests envs/mock envs/cartpole
 
 test:
-	@test -x "$(PYTEST)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
+	@test -x "$(PYTEST)" || (echo "Run: make install-dev" && exit 1)
 	$(PYTEST) tests/ -m "not slow" -v
 
 test-all:
-	@test -x "$(PYTEST)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
+	@test -x "$(PYTEST)" || (echo "Run: make install-dev" && exit 1)
 	$(PYTEST) tests/ -v
 
 pre-commit-install:
-	@test -x "$(PRE_COMMIT)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
+	@test -x "$(PRE_COMMIT)" || (echo "Run: make install-dev" && exit 1)
 	$(PRE_COMMIT) install
 
 help:
 	@echo "DropRL — drop-in RL environments"
 	@echo ""
-	@echo "install / install-env TASK= / install-all"
+	@echo "install / install-dev / install-env TASK= / install-all"
 	@echo "train TASK=          resume latest checkpoint"
 	@echo "clean-train TASK=    new run, no restore"
 	@echo "render TASK=         checkpoint_best from latest run"

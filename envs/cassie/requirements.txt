@@ -1,4 +1,4 @@
-# Cassie task deps (install core first: pip install -r requirements.txt)
+# Cassie task deps (install core first: make install)
 # numpy re-pinned here because mujoco may try to upgrade it.
 numpy==1.26.4
 mujoco==3.3.1

@@ -59,7 +59,8 @@ Config merge order: `configs/config.yaml` → `envs/<task>/config.yaml` → `con
 ## Commands
 
 ```bash
-make install                         # venv + core deps
+make install                         # venv + core deps (from pyproject.toml)
+make install-dev                     # + lint/test/pre-commit tools
 make install-env TASK=cassie         # + env-specific deps (MuJoCo, etc.)
 make train TASK=mock                 # resume latest checkpoint
 make clean-train TASK=cassie         # fresh run
@@ -126,9 +127,10 @@ Train configs (`configs/train/<Task>PPO.yaml`) hold **PPO hyperparameters only**
 
 ## Development
 
+Core dependencies live in `pyproject.toml` only. Per-task extras stay in `envs/<task>/requirements.txt`.
+
 ```bash
-make install
-pip install -e ".[dev]"
+make install-dev
 make pre-commit-install
 make lint
 make test
