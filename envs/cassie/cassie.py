@@ -28,6 +28,13 @@ from gymnasium.spaces import Box
 from health import check_health
 from observations import build_observation
 from rewards import RewardCalculator
+from scene_viz import (
+    ArrowSpec,
+    command_arrow_tip,
+    install_render_arrow_hook,
+    pelvis_origin,
+    push_arrow_tip,
+)
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -430,6 +437,7 @@ class CassieEnv(MujocoEnv):
     # ------------------------------------------------------------------
 
     def render(self) -> "bool | npt.NDArray[np.uint8]":
+        self._queue_scene_arrows()
         frame = super().render()
 
         if self.local_render_mode == "rgb_array":
@@ -450,6 +458,47 @@ class CassieEnv(MujocoEnv):
             cv2.resizeWindow("Cassie", 800, 600)
 
         return True
+
+    def _queue_scene_arrows(self) -> None:
+        """Stage 3D command / push arrows for injection during MuJoCo rasterization."""
+        renderer = getattr(self, "mujoco_renderer", None)
+        if renderer is None:
+            return
+
+        render_mode = getattr(self, "render_mode", None) or self.local_render_mode
+        viewer = renderer._get_viewer(render_mode)
+        install_render_arrow_hook(viewer, self)
+
+        specs: list[ArrowSpec] = []
+        cmd_origin = pelvis_origin(self.data, PELVIS, z_offset=0.18)
+        cmd_tip = command_arrow_tip(cmd_origin, np.asarray(self.command, dtype=np.float64))
+        if cmd_tip is not None:
+            specs.append(
+                ArrowSpec(
+                    origin=cmd_origin,
+                    tip=cmd_tip,
+                    width=0.0225,
+                    rgba=(0.12, 0.78, 0.95, 0.9),
+                    emission=0.2,
+                )
+            )
+
+        if self._pushing >= 0:
+            force = np.asarray(self._current_push_force, dtype=np.float64)
+            push_origin = pelvis_origin(self.data, PELVIS, z_offset=0.34)
+            push_tip = push_arrow_tip(push_origin, force, self._force_max_norm)
+            if push_tip is not None:
+                specs.append(
+                    ArrowSpec(
+                        origin=push_origin,
+                        tip=push_tip,
+                        width=0.029,
+                        rgba=(1.0, 0.42, 0.1, 0.95),
+                        emission=0.35,
+                    )
+                )
+
+        self._pending_arrow_specs = specs
 
     # ------------------------------------------------------------------
     # Private helpers
