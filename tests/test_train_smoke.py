@@ -49,7 +49,7 @@ def _run_train_smoke(
 
 @pytest.mark.slow
 def test_mock_train_one_iter(tmp_path: Path) -> None:
-    _run_train_smoke(tmp_path, task="mock", train="MockPPO", run_name="ci_mock")
+    _run_train_smoke(tmp_path, task="mock", train="Mock", run_name="ci_mock")
 
 
 @pytest.mark.slow
@@ -57,6 +57,6 @@ def test_cartpole_train_one_iter(tmp_path: Path) -> None:
     _run_train_smoke(
         tmp_path,
         task="cartpole",
-        train="CartpolePPO",
+        train="Cartpole",
         run_name="ci_cartpole",
     )

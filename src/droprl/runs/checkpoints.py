@@ -265,11 +265,32 @@ def resolve_render_paths(
 
 
 def restore_checkpoint(algo: Any, checkpoint: Path) -> bool:
-    """Restore an RLlib algorithm from a full RLlib checkpoint directory."""
-    from droprl.rllib.loader import is_rllib_checkpoint
+    """Restore from RLlib checkpoint, or portable artifacts if pickle restore fails."""
+    import logging
 
-    if not is_rllib_checkpoint(checkpoint):
-        return False
+    from droprl.rllib.loader import (
+        is_rllib_checkpoint,
+        load_policy_artifacts,
+        policy_weights_path,
+    )
 
-    algo.restore(abs_path_str(checkpoint))
-    return True
+    log = logging.getLogger(__name__)
+
+    if policy_weights_path(checkpoint).is_file():
+        try:
+            if is_rllib_checkpoint(checkpoint):
+                algo.restore(abs_path_str(checkpoint))
+                return True
+        except Exception as exc:
+            log.warning(
+                "RLlib checkpoint restore failed (%s); loading portable artifacts",
+                exc,
+            )
+        load_policy_artifacts(algo, checkpoint)
+        return True
+
+    if is_rllib_checkpoint(checkpoint):
+        algo.restore(abs_path_str(checkpoint))
+        return True
+
+    return False

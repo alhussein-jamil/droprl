@@ -11,7 +11,7 @@ PRE_COMMIT := $(VENV)/bin/pre-commit
 TENSORBOARD := $(VENV)/bin/tensorboard
 
 TASK ?= mock
-TRAIN ?= $(shell $(PYTHON) -c "print('$(TASK)'.capitalize() + 'PPO')")
+TRAIN ?= $(shell $(PYTHON) -c "print('$(TASK)'.capitalize())")
 ITERS ?=
 NAME ?=
 OUTPUT ?= runs
@@ -60,13 +60,13 @@ tensorboard:
 
 lint:
 	@test -x "$(RUFF)" || (echo "Run: make install-dev" && exit 1)
-	$(RUFF) check src scripts tests envs/mock envs/cartpole
-	$(RUFF) format --check src scripts tests envs/mock envs/cartpole
+	$(RUFF) check src scripts tests envs/mock envs/cartpole envs/pendulum
+	$(RUFF) format --check src scripts tests envs/mock envs/cartpole envs/pendulum
 
 format:
 	@test -x "$(RUFF)" || (echo "Run: make install-dev" && exit 1)
-	$(RUFF) check --fix src scripts tests envs/mock envs/cartpole
-	$(RUFF) format src scripts tests envs/mock envs/cartpole
+	$(RUFF) check --fix src scripts tests envs/mock envs/cartpole envs/pendulum
+	$(RUFF) format src scripts tests envs/mock envs/cartpole envs/pendulum
 
 test:
 	@test -x "$(PYTEST)" || (echo "Run: make install-dev" && exit 1)

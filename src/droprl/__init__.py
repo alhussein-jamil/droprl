@@ -1,4 +1,4 @@
-"""DropRL: drop-in environments for RLlib PPO training."""
+"""DropRL: drop-in environments for RLlib training."""
 
 from droprl.envs.registry import list_envs, load_env
 

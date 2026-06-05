@@ -1,0 +1,29 @@
+# SAC example on continuous-action Pendulum (task: pendulum).
+algorithm: sac
+
+run:
+  iters: 200
+  render_every: 0
+
+training:
+  environment:
+    clip_actions: true
+    normalize_actions: true
+  env_runners:
+    num_env_runners: 0
+    num_envs_per_env_runner: 1
+    rollout_fragment_length: 200
+    batch_mode: truncate_episodes
+  training:
+    gamma: 0.99
+    lr: 3.0e-4
+    train_batch_size: 256
+    replay_buffer_config:
+      type: MultiAgentReplayBuffer
+      capacity: 100000
+    model:
+      fcnet_hiddens: [64, 64]
+  framework:
+    framework: torch
+  resources:
+    num_gpus: 0

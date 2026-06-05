@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from ray.rllib.algorithms.ppo import PPO, PPOConfig
+from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.connectors.agent.mean_std_filter import MeanStdObservationFilterAgentConnector
 from ray.rllib.utils.filter import RunningStat
+
+from droprl.rllib.algorithms import build_algorithm
 
 log = logging.getLogger(__name__)
 
@@ -42,25 +44,15 @@ def _eval_env_runners_config(env_runners: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
-def build_ppo_trainer(training_section: dict[str, Any]) -> PPO:
-    """Build a single-env-runner PPO trainer for eval/render."""
-    section = deepcopy(training_section)
-    section["framework"] = {"framework": "torch"}
-    env_runners = _eval_env_runners_config(section.get("env_runners", {}))
-
-    return (
-        PPOConfig()
-        .api_stack(
-            enable_rl_module_and_learner=False,
-            enable_env_runner_and_connector_v2=False,
-        )
-        .environment(**section.get("environment", {}))
-        .env_runners(**env_runners)
-        .training(**section.get("training", {}))
-        .framework(**section.get("framework", {}))
-        .resources(num_gpus=0)
-        .build_algo()
-    )
+def build_eval_trainer(config: dict[str, Any], *, task: str) -> Algorithm:
+    """Build a single-env-runner trainer for eval/render."""
+    eval_config = deepcopy(config)
+    training = deepcopy(eval_config.get("training", {}))
+    training["framework"] = {"framework": "torch"}
+    training["env_runners"] = _eval_env_runners_config(training.get("env_runners", {}))
+    training["resources"] = {"num_gpus": 0}
+    eval_config["training"] = training
+    return build_algorithm(eval_config, task=task)
 
 
 def _json_safe(value: Any) -> Any:
@@ -73,7 +65,22 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def _obs_filter_connectors(trainer: PPO) -> list[MeanStdObservationFilterAgentConnector]:
+def _restore_filter_shape(raw: Any) -> Any:
+    """Rebuild MeanStdFilter ``shape`` tree from JSON (ints → ``np.ndarray``)."""
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return {k: _restore_filter_shape(v) for k, v in raw.items()}
+    if isinstance(raw, list):
+        if raw and all(isinstance(v, int) for v in raw):
+            return np.array(raw)
+        return [_restore_filter_shape(v) for v in raw]
+    return np.asarray(raw)
+
+
+def _obs_filter_connectors(
+    trainer: Algorithm,
+) -> list[MeanStdObservationFilterAgentConnector]:
     policy = trainer.get_policy()
     connectors = getattr(policy, "agent_connectors", None)
     if connectors is None:
@@ -81,15 +88,16 @@ def _obs_filter_connectors(trainer: PPO) -> list[MeanStdObservationFilterAgentCo
     return connectors[MeanStdObservationFilterAgentConnector]
 
 
-def _save_obs_filter(trainer: PPO, path: Path) -> None:
+def _save_obs_filter(trainer: Algorithm, path: Path) -> None:
     connectors = _obs_filter_connectors(trainer)
     if not connectors:
         return
     _name, params = connectors[0].to_state()
     path.write_text(json.dumps(_json_safe(params), indent=2))
+    log.info("Observation filter exported to %s", path)
 
 
-def _load_obs_filter(trainer: PPO, path: Path) -> None:
+def _load_obs_filter(trainer: Algorithm, path: Path) -> None:
     connectors = _obs_filter_connectors(trainer)
     if not connectors:
         if path.is_file():
@@ -98,24 +106,26 @@ def _load_obs_filter(trainer: PPO, path: Path) -> None:
     if not path.is_file():
         return
 
+    import tree
+
     params = json.loads(path.read_text())
     connector = connectors[0]
-    connector.filter.shape = params["shape"]
+    shape = _restore_filter_shape(params["shape"])
+    connector.filter.shape = shape
     connector.filter.no_preprocessor = params["no_preprocessor"]
     connector.filter.demean = params["demean"]
     connector.filter.destd = params["destd"]
-    connector.filter.clip = params["clip"]
-
-    import tree
+    if params.get("clip") is not None:
+        connector.filter.clip = params["clip"]
 
     running_stats = [RunningStat.from_state(s) for s in params["running_stats"]]
-    connector.filter.running_stats = tree.unflatten_as(connector.filter.shape, running_stats)
+    connector.filter.running_stats = tree.unflatten_as(shape, running_stats)
     buffer = [RunningStat.from_state(s) for s in params["buffer"]]
-    connector.filter.buffer = tree.unflatten_as(connector.filter.shape, buffer)
+    connector.filter.buffer = tree.unflatten_as(shape, buffer)
     log.info("Restored observation filter from %s", path)
 
 
-def save_policy_artifacts(trainer: PPO, checkpoint_path: Path | str) -> None:
+def save_policy_artifacts(trainer: Algorithm, checkpoint_path: Path | str) -> None:
     """Export portable policy weights and observation-filter state."""
     ckpt = Path(checkpoint_path)
     weights = trainer.get_policy().get_weights()
@@ -125,7 +135,7 @@ def save_policy_artifacts(trainer: PPO, checkpoint_path: Path | str) -> None:
     _save_obs_filter(trainer, obs_filter_path(ckpt))
 
 
-def load_policy_artifacts(trainer: PPO, checkpoint_path: Path | str) -> None:
+def load_policy_artifacts(trainer: Algorithm, checkpoint_path: Path | str) -> None:
     """Load portable artifacts for eval/render (no RLlib pickle restore)."""
     ckpt = Path(checkpoint_path)
     npz = policy_weights_path(ckpt)

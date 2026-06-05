@@ -21,6 +21,6 @@ def test_cartpole_is_gymnasium() -> None:
 
 
 def test_load_cartpole_experiment() -> None:
-    cfg = load_experiment(task="cartpole", train="CartpolePPO")
+    cfg = load_experiment(task="cartpole", train="Cartpole")
     assert cfg["env"]["config"]["gym_id"] == "CartPole-v1"
     assert cfg["training"]["environment"]["normalize_actions"] is False

@@ -1,0 +1,4 @@
+# Gymnasium Pendulum-v1 — continuous actions (SAC example).
+config:
+  gym_id: Pendulum-v1
+  render_mode: rgb_array

@@ -1,15 +1,15 @@
 # DropRL
 
-**Drop an environment folder. Train with PPO. Ship it.**
+**Drop an environment folder. Pick an algorithm. Ship it.**
 
 [![ci](https://github.com/alhussein-jamil/droprl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/alhussein-jamil/droprl/actions/workflows/ci.yml)
 [![Python 3.10–3.12](https://img.shields.io/badge/python-3.10--3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Ray RLlib](https://img.shields.io/badge/RLlib-2.44.1-orange.svg)](https://docs.ray.io/en/latest/rllib/index.html)
 
-DropRL is a minimal, env-first reinforcement learning framework built on [Ray RLlib](https://docs.ray.io/en/latest/rllib/index.html). Add a task under `envs/<name>/`, point PPO at it, and go — no boilerplate projects, no per-env Makefiles.
+DropRL is a minimal, env-first reinforcement learning framework built on [Ray RLlib](https://docs.ray.io/en/latest/rllib/index.html). Add a task under `envs/<name>/`, set `algorithm` in YAML, and go — no boilerplate projects, no per-env Makefiles.
 
-Includes a **mock** env for fast iteration, **cartpole** (Gymnasium `CartPole-v1`) for integration testing, and a full **Cassie** locomotion task (MuJoCo).
+Includes a **mock** env for fast iteration, **cartpole** (Gymnasium `CartPole-v1`) for integration testing, **pendulum** (Gymnasium `Pendulum-v1`) as a SAC example, and a full **Cassie** locomotion task (MuJoCo).
 
 ## Why DropRL?
 
@@ -19,6 +19,7 @@ Includes a **mock** env for fast iteration, **cartpole** (Gymnasium `CartPole-v1
 | Resume training | `make train` | Custom checkpoint scripts |
 | Render best policy | `make render` | Manual checkpoint paths |
 | Config | YAML merge: global → env → train | Scattered Python constants |
+| Swap algorithm | Change `algorithm:` in train YAML | Fork training scripts |
 
 ## Quick start
 
@@ -29,7 +30,9 @@ git clone https://github.com/alhussein-jamil/droprl.git
 cd droprl
 make install
 make train TASK=mock ITERS=5
-make train TASK=cartpole ITERS=20    # Gymnasium CartPole-v1
+make train TASK=cartpole ITERS=20    # Gymnasium CartPole-v1 (PPO)
+make train TASK=cartpole TRAIN=CartpoleDQN ITERS=100   # DQN example
+make train TASK=pendulum TRAIN=PendulumSAC ITERS=200   # SAC example
 make tensorboard
 ```
 
@@ -39,7 +42,7 @@ make tensorboard
 DropRL/
 ├── configs/
 │   ├── config.yaml              # global defaults (ray, run, dynamic_lr)
-│   └── train/<Task>PPO.yaml     # PPO hyperparameters per task
+│   └── train/<Task>.yaml        # algorithm + RLlib hyperparameters
 ├── envs/
 │   ├── _template/               # copy to scaffold a new task
 │   └── <task>/
@@ -71,7 +74,7 @@ make lint                            # ruff check + format
 make pre-commit-install              # git hooks
 ```
 
-`TRAIN` defaults to `<Task>PPO` (e.g. `mock` → `MockPPO`).
+`TRAIN` defaults to the capitalized task name (e.g. `mock` → `Mock` → `configs/train/Mock.yaml`).
 
 ### Train & resume
 
@@ -100,7 +103,7 @@ Scaffold from `envs/_template/`:
 
 ```bash
 cp -r envs/_template envs/my_task
-cp configs/train/_template.yaml configs/train/MyTaskPPO.yaml
+cp configs/train/_template.yaml configs/train/MyTask.yaml
 make train TASK=my_task ITERS=5
 ```
 
@@ -116,13 +119,23 @@ make train TASK=my_task ITERS=5
 
 `make_env` may return a **Gymnasium** env (recommended) or a **`droprl.envs.base.BaseEnv`**.
 
-Train configs (`configs/train/<Task>PPO.yaml`) hold **PPO hyperparameters only** — no task wiring.
+### Train config (`configs/train/<Task>.yaml`)
+
+| Key | Purpose |
+|-----|---------|
+| `algorithm` | RLlib algorithm id: `ppo`, `sac`, or `dqn` |
+| `training` | RLlib `environment`, `env_runners`, `training`, `framework`, `resources` |
+| `run` / `ray` | Optional overrides for run length, checkpoints, Ray resources |
+
+Task wiring (env id, `env_config`) is handled by `scripts/train.py` — train YAMLs hold **algorithm settings only**.
 
 ## Features
 
-- **RLlib PPO** with dynamic LR, checkpoint resume, TensorBoard logging
+- **RLlib algorithms** — `ppo`, `sac`, `dqn` (extensible registry in `droprl.rllib.algorithms`)
+- **Dynamic LR**, checkpoint resume, TensorBoard logging
 - **`num_env_runners: auto`** — uses all CPUs
 - **Periodic renders** and **Ctrl+C checkpoint** (CassieRobot-style)
+- **Portable checkpoints** — `policy_weights.npz` + `obs_filter.json` for render/resume
 - **Per-env `requirements.txt`** — Cassie pins MuJoCo without polluting core deps
 
 ## Development

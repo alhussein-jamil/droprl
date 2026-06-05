@@ -1,5 +1,7 @@
-# Copy to configs/train/<YourTask>PPO.yaml — PPO/RLlib settings only.
+# Copy to configs/train/<YourTask>.yaml — algorithm + RLlib hyperparameters only.
 # Task code (env, callbacks, assets) lives under envs/<your_task>/.
+
+algorithm: ppo  # ppo | sac | dqn
 
 training:
   environment:

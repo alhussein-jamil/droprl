@@ -20,8 +20,8 @@ jobs:
           python-version: "3.10"
           cache: pip
       - run: pip install -e ".[dev]"
-      - run: ruff check src scripts tests envs/mock envs/cartpole
-      - run: ruff format --check src scripts tests envs/mock envs/cartpole
+      - run: ruff check src scripts tests envs/mock envs/cartpole envs/pendulum
+      - run: ruff format --check src scripts tests envs/mock envs/cartpole envs/pendulum
 
   test:
     runs-on: ubuntu-latest

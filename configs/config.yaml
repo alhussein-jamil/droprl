@@ -1,4 +1,5 @@
 # Global defaults.
+# algorithm: ppo  # optional default; usually set per configs/train/<Task>.yaml
 
 ray:
   num_cpus: auto

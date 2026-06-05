@@ -6,6 +6,7 @@ from droprl.envs.registry import list_envs, load_env
 def test_list_envs_discovers_mock() -> None:
     names = list_envs()
     assert "mock" in names
+    assert "pendulum" in names
 
 
 def test_load_mock_env_step() -> None:

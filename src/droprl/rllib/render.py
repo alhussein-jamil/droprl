@@ -9,14 +9,15 @@ import gymnasium as gym
 import mediapy as media
 import numpy as np
 import ray
-from ray.rllib.algorithms.ppo import PPO
+from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.connectors.agent.mean_std_filter import MeanStdObservationFilterAgentConnector
+from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.typing import ActionConnectorDataType, AgentConnectorDataType
 
 from droprl.envs.base import BaseEnv
 from droprl.envs.registry import load_env
 from droprl.rllib.env_wrapper import RllibGymWrapper
-from droprl.rllib.loader import build_ppo_trainer, load_policy_artifacts
+from droprl.rllib.loader import build_eval_trainer, load_policy_artifacts
 from droprl.rllib.registry import register_rllib_envs
 from droprl.runs.checkpoints import is_usable_checkpoint
 
@@ -42,8 +43,9 @@ def _obs_filter(policy) -> MeanStdObservationFilterAgentConnector | None:
 def _apply_obs_filter(filter_conn: MeanStdObservationFilterAgentConnector | None, obs):
     if filter_conn is None:
         return obs
-    acd = AgentConnectorDataType(env_id="eval", agent_id=0, data={"obs": obs})
-    return filter_conn([acd])[0].data["obs"]
+    obs_arr = np.asarray(obs, dtype=np.float32)
+    acd = AgentConnectorDataType(env_id="eval", agent_id=0, data={SampleBatch.OBS: obs_arr})
+    return filter_conn([acd])[0].data[SampleBatch.OBS]
 
 
 def _apply_action_connectors(policy, raw_action, states, fetches):
@@ -60,7 +62,7 @@ def _apply_action_connectors(policy, raw_action, states, fetches):
 
 
 def rollout_frames(
-    trainer: PPO,
+    trainer: Algorithm,
     env: gym.Env,
     *,
     max_steps: int,
@@ -126,7 +128,8 @@ def render_checkpoint(
             runtime_env=build_runtime_env(env_name),
         )
 
-    training_section = deepcopy(config.get("training", {}))
+    eval_config = deepcopy(config)
+    training_section = eval_config.setdefault("training", {})
     training_section.setdefault("environment", {})
     env_map = register_rllib_envs(tasks=[env_name])
     if env_name not in env_map:
@@ -134,7 +137,7 @@ def render_checkpoint(
     training_section["environment"]["env"] = env_map[env_name]
     training_section["environment"]["env_config"] = env_cfg
 
-    trainer = build_ppo_trainer(training_section)
+    trainer = build_eval_trainer(eval_config, task=env_name)
     load_policy_artifacts(trainer, checkpoint)
     env = _to_gym_env(load_env(env_name, env_cfg))
     if hasattr(env, "render_mode"):

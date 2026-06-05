@@ -24,13 +24,13 @@ config:
   width: 1920
   height: 1080
   reset_noise_scale: 0.08
-  reset_noise_vel_scale: 0.0
+  reset_noise_vel_scale: 0.01
   force_max_norm: 10.0
   push_prob_per_second: 0.2
-  push_duration: 0.5
-  action_filter_alpha: 0.8
-  r_bias: -0.1
-  r_biped: 0.3
+  push_duration: 0.2
+  action_filter_alpha: 0.4
+  r_bias: -0.05
+  r_biped: 0.6
   r_feet_parallel: 0.1
   r_cmd: 1.0
   r_smooth: 0.6

@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import Any
 
 import ray
-from ray.rllib.algorithms.ppo import PPOConfig
 
 from droprl.config import abs_path_str, list_tasks, list_train_configs, load_experiment
 from droprl.logging import setup_logging
+from droprl.rllib.algorithms import build_algorithm, default_train_name, resolve_algorithm
 from droprl.rllib.lr_schedule import (
     apply_lr_to_trainer,
     build_dynamic_lr_controller,
@@ -45,11 +45,10 @@ from droprl.runs.checkpoints import (
     write_state,
 )
 from droprl.runs.resolve import resolve_run_dir
-from droprl.tasks.extensions import discover_callbacks
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Train a task with RLlib PPO.")
+    p = argparse.ArgumentParser(description="Train a task with RLlib.")
     p.add_argument(
         "--task",
         type=str,
@@ -59,8 +58,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--train",
         type=str,
-        default="MockPPO",
-        help=f"Train config (configs/train/<name>.yaml). Available: {list_train_configs()}",
+        default=None,
+        help=f"Train config (configs/train/<name>.yaml). Default: capitalized task name. "
+        f"Available: {list_train_configs()}",
     )
     p.add_argument("--output", type=str, default="runs", help="Output directory")
     p.add_argument("--name", type=str, default=None, help="Run name (directory name)")
@@ -71,34 +71,6 @@ def parse_args() -> argparse.Namespace:
         help="Start a new run (do not resume the latest checkpoint)",
     )
     return p.parse_args()
-
-
-def _build_ppo(cfg: dict[str, Any], *, task: str):
-    training = cfg.get("training", {})
-    env_id = training.get("environment", {}).get("env")
-    if not env_id:
-        raise ValueError("config.training.environment.env must be set to the RLlib env id.")
-
-    builder = (
-        PPOConfig()
-        .api_stack(
-            enable_rl_module_and_learner=False,
-            enable_env_runner_and_connector_v2=False,
-        )
-        .environment(**training.get("environment", {}))
-        .env_runners(**training.get("env_runners", {}))
-        .debugging(logger_creator=_logger_creator(training.get("logdir")))
-        .training(**training.get("training", {}))
-        .framework(**training.get("framework", {}))
-        .resources(**training.get("resources", {}))
-        .fault_tolerance(**training.get("fault_tolerance", {}))
-    )
-
-    callbacks_cls = discover_callbacks(task)
-    if callbacks_cls is not None:
-        builder = builder.callbacks(callbacks_class=callbacks_cls)
-
-    return builder.build_algo()
 
 
 def _logger_creator(logdir: Path | str | None):
@@ -167,7 +139,8 @@ def main() -> int:
     setup_logging(level=logging.INFO)
     log = logging.getLogger("droprl.train")
 
-    config = load_experiment(task=args.task, train=args.train)
+    train_name = args.train or default_train_name(args.task)
+    config = load_experiment(task=args.task, train=train_name)
     runs_root = Path(args.output)
     runs_root.mkdir(parents=True, exist_ok=True)
 
@@ -202,7 +175,11 @@ def main() -> int:
         **ray_cfg,
     )
 
-    algo = _build_ppo(config, task=args.task)
+    algo = build_algorithm(
+        config,
+        task=args.task,
+        logger_creator=_logger_creator(training_section.get("logdir")),
+    )
     run_cfg = config.get("run", {})
     training_cfg = training_section.get("training", {})
     chkpt_every = chkpt_every_iters(run_cfg)
@@ -276,11 +253,12 @@ def main() -> int:
     signal.signal(signal.SIGTERM, _request_stop)
 
     log.info(
-        "task=%s train=%s run=%s resume=%s start=%d end=%d limit=%s "
+        "task=%s train=%s algorithm=%s run=%s resume=%s start=%d end=%d limit=%s "
         "ray_cpus=%s ray_gpus=%s env_runners=%s chkpt_every=%d chkpt_freq=%ds "
         "render_every=%ds dynamic_lr=%s lr=%.2e",
         args.task,
-        args.train,
+        train_name,
+        resolve_algorithm(config),
         run_name,
         start_iter > 0,
         start_iter,
@@ -389,7 +367,7 @@ def main() -> int:
                     last_render_time = now
                     _spawn_render(
                         task=args.task,
-                        train=args.train,
+                        train=train_name,
                         checkpoint=ckpt,
                         run_dir=run_dir,
                         label=render_label,

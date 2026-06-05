@@ -8,6 +8,7 @@ from pathlib import Path
 
 from droprl.config import load_experiment
 from droprl.logging import setup_logging
+from droprl.rllib.algorithms import default_train_name
 from droprl.rllib.render import render_checkpoint
 from droprl.runs.checkpoints import resolve_render_paths
 
@@ -17,7 +18,12 @@ def parse_args() -> argparse.Namespace:
         description="Render a checkpoint rollout to MP4.",
     )
     p.add_argument("--task", type=str, default="mock")
-    p.add_argument("--train", type=str, default="MockPPO")
+    p.add_argument(
+        "--train",
+        type=str,
+        default=None,
+        help="Train config name (default: capitalized task name)",
+    )
     p.add_argument(
         "--runs-root",
         type=str,
@@ -70,7 +76,8 @@ def main() -> int:
 
     log.info("run=%s checkpoint=%s output=%s", run_dir.name, checkpoint, output)
 
-    config = load_experiment(task=args.task, train=args.train)
+    train_name = args.train or default_train_name(args.task)
+    config = load_experiment(task=args.task, train=train_name)
     path = render_checkpoint(
         config=config,
         env_name=args.task,
