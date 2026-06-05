@@ -1,0 +1,4 @@
+# Standard Gymnasium env (no extra requirements.txt needed).
+config:
+  gym_id: CartPole-v1
+  render_mode: rgb_array

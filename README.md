@@ -9,7 +9,7 @@
 
 DropRL is a minimal, env-first reinforcement learning framework built on [Ray RLlib](https://docs.ray.io/en/latest/rllib/index.html). Add a task under `envs/<name>/`, point PPO at it, and go — no boilerplate projects, no per-env Makefiles.
 
-Includes a **mock** env for fast iteration and a full **Cassie** locomotion task (MuJoCo).
+Includes a **mock** env for fast iteration, **cartpole** (Gymnasium `CartPole-v1`) for integration testing, and a full **Cassie** locomotion task (MuJoCo).
 
 ## Why DropRL?
 
@@ -29,6 +29,7 @@ git clone https://github.com/alhussein-jamil/droprl.git
 cd droprl
 make install
 make train TASK=mock ITERS=5
+make train TASK=cartpole ITERS=20    # Gymnasium CartPole-v1
 make tensorboard
 ```
 

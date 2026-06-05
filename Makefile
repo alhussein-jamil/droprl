@@ -57,13 +57,13 @@ tensorboard:
 
 lint:
 	@test -x "$(RUFF)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
-	$(RUFF) check src scripts tests envs/mock
-	$(RUFF) format --check src scripts tests envs/mock
+	$(RUFF) check src scripts tests envs/mock envs/cartpole
+	$(RUFF) format --check src scripts tests envs/mock envs/cartpole
 
 format:
 	@test -x "$(RUFF)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
-	$(RUFF) check --fix src scripts tests envs/mock
-	$(RUFF) format src scripts tests envs/mock
+	$(RUFF) check --fix src scripts tests envs/mock envs/cartpole
+	$(RUFF) format src scripts tests envs/mock envs/cartpole
 
 test:
 	@test -x "$(PYTEST)" || (echo "Run: pip install -e '.[dev]'" && exit 1)
