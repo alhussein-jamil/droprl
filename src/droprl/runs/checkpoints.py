@@ -11,6 +11,7 @@ from droprl.config import abs_path_str
 
 CHECKPOINT_LATEST = "checkpoint_latest"
 CHECKPOINT_BEST = "checkpoint_best"
+CHECKPOINT_LATEST_BACKUPS = "checkpoint_latest_backups"
 STATE_FILE = "training_state.json"
 POLICY_WEIGHTS_FILE = "policy_weights.npz"
 CHECKPOINT_META_FILE = "checkpoint_meta.json"
@@ -42,21 +43,64 @@ def write_state(
     checkpoint_iteration: int | None = None,
 ) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
+    path = run_dir / STATE_FILE
+    started_at = time.time()
+    if path.is_file():
+        try:
+            existing = json.loads(path.read_text())
+            started_at = float(existing.get("started_at", started_at))
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            pass
+
     payload: dict[str, Any] = {
         "iteration": int(state.iteration),
         "best_reward": float(state.best_reward),
         "best_iteration": int(state.best_iteration),
+        "started_at": started_at,
         "updated_at": time.time(),
     }
     if checkpoint_iteration is not None:
         payload["checkpoint_iteration"] = int(checkpoint_iteration)
-    (run_dir / STATE_FILE).write_text(json.dumps(payload, indent=2))
+    path.write_text(json.dumps(payload, indent=2))
 
 
 def _replace_dir(dest: Path) -> None:
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True, exist_ok=True)
+
+
+def latest_backups_root(run_dir: Path) -> Path:
+    return run_dir / CHECKPOINT_LATEST_BACKUPS
+
+
+def latest_backup_dir(run_dir: Path, slot: int) -> Path:
+    return latest_backups_root(run_dir) / f"{slot:03d}"
+
+
+def rotate_latest_backups(run_dir: Path, *, keep: int) -> None:
+    """Shift backup slots and copy the current ``checkpoint_latest`` into slot 0."""
+    if keep <= 0:
+        return
+
+    latest = latest_dir(run_dir)
+    if not is_usable_checkpoint(latest):
+        return
+
+    backups_root = latest_backups_root(run_dir)
+    backups_root.mkdir(parents=True, exist_ok=True)
+
+    oldest = latest_backup_dir(run_dir, keep - 1)
+    if oldest.exists():
+        shutil.rmtree(oldest)
+
+    for slot in range(keep - 2, -1, -1):
+        src = latest_backup_dir(run_dir, slot)
+        if not src.exists():
+            continue
+        src.rename(latest_backup_dir(run_dir, slot + 1))
+
+    shutil.copytree(latest, latest_backup_dir(run_dir, 0))
 
 
 def is_usable_checkpoint(path: Path) -> bool:
@@ -105,9 +149,12 @@ def save_checkpoint(
     dest: Path,
     *,
     loop_iteration: int | None = None,
+    keep_latest_backups: int = 0,
 ) -> Path:
     """Save an RLlib Algorithm checkpoint into `dest` (replacing it)."""
     training_iteration = _algo_training_iteration(algo, loop_iteration=loop_iteration)
+    if keep_latest_backups > 0 and dest.name == CHECKPOINT_LATEST:
+        rotate_latest_backups(dest.parent, keep=keep_latest_backups)
     _replace_dir(dest)
     algo.save(checkpoint_dir=abs_path_str(dest))
     _write_checkpoint_meta(dest, training_iteration=training_iteration)
@@ -188,6 +235,27 @@ def sync_algo_progress(algo: Any, *, loop_iteration: int) -> None:
     algo._iteration = int(loop_iteration) + 1
 
 
+def _run_started_at(run_dir: Path) -> float:
+    """Estimate when a run was started (for picking the newest resumable run)."""
+    state_path = run_dir / STATE_FILE
+    if state_path.is_file():
+        try:
+            raw = json.loads(state_path.read_text())
+            value = raw.get("started_at")
+            if value is not None:
+                return float(value)
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            pass
+
+    # Default run dirs are named ``YYYYMMDD_HHMMSS``.
+    try:
+        from datetime import datetime
+
+        return datetime.strptime(run_dir.name, "%Y%m%d_%H%M%S").timestamp()
+    except ValueError:
+        return 0.0
+
+
 def find_resumable_run(runs_root: Path, task: str) -> Path | None:
     """Return the newest run directory under runs/<task>/ with a checkpoint."""
     root = task_runs_root(runs_root, task)
@@ -198,11 +266,7 @@ def find_resumable_run(runs_root: Path, task: str) -> Path | None:
     if not candidates:
         return None
 
-    def _sort_key(path: Path) -> tuple[int, float]:
-        state = read_state(path)
-        return (state.iteration, path.stat().st_mtime)
-
-    return max(candidates, key=_sort_key)
+    return max(candidates, key=lambda path: (_run_started_at(path), path.name))
 
 
 def find_latest_run(

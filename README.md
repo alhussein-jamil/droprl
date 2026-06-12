@@ -1,11 +1,15 @@
-# DropRL
+<p align="center">
+  <img src="assets/Logo.png" alt="DropRL" width="420"/>
+</p>
 
-**Drop an environment folder. Pick an algorithm. Ship it.**
+<p align="center"><strong>Drop an environment folder. Pick an algorithm. Ship it.</strong></p>
 
-[![ci](https://github.com/alhussein-jamil/droprl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/alhussein-jamil/droprl/actions/workflows/ci.yml)
-[![Python 3.10–3.12](https://img.shields.io/badge/python-3.10--3.12-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Ray RLlib](https://img.shields.io/badge/RLlib-2.44.1-orange.svg)](https://docs.ray.io/en/latest/rllib/index.html)
+<p align="center">
+  <a href="https://github.com/alhussein-jamil/droprl/actions/workflows/ci.yml"><img src="https://github.com/alhussein-jamil/droprl/actions/workflows/ci.yml/badge.svg?branch=master" alt="ci"/></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10--3.12-blue.svg" alt="Python 3.10–3.12"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
+  <a href="https://docs.ray.io/en/latest/rllib/index.html"><img src="https://img.shields.io/badge/RLlib-2.44.1-orange.svg" alt="Ray RLlib"/></a>
+</p>
 
 DropRL is a minimal, env-first reinforcement learning framework built on [Ray RLlib](https://docs.ray.io/en/latest/rllib/index.html). Add a task under `envs/<name>/`, set `algorithm` in YAML, and go — no boilerplate projects, no per-env Makefiles.
 
@@ -41,7 +45,7 @@ make tensorboard
 ```
 DropRL/
 ├── configs/
-│   ├── config.yaml              # global defaults (ray, run, dynamic_lr)
+│   ├── config.yaml              # global defaults (ray, run, lr_schedule)
 │   └── train/<Task>.yaml        # algorithm + RLlib hyperparameters
 ├── envs/
 │   ├── _template/               # copy to scaffold a new task
@@ -132,7 +136,7 @@ Task wiring (env id, `env_config`) is handled by `scripts/train.py` — train YA
 ## Features
 
 - **RLlib algorithms** — `ppo`, `sac`, `dqn` (extensible registry in `droprl.rllib.algorithms`)
-- **Dynamic LR**, checkpoint resume, TensorBoard logging
+- **Configurable LR schedules** (`fixed`, `dynamic`, `cosine`, `linear`), checkpoint resume, TensorBoard logging
 - **`num_env_runners: auto`** — uses all CPUs
 - **Periodic renders** and **Ctrl+C checkpoint** (CassieRobot-style)
 - **Portable checkpoints** — `policy_weights.npz` + `obs_filter.json` for render/resume

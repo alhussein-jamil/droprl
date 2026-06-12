@@ -14,16 +14,21 @@ run:
   render_showcase_on_best: false
   chkpt_freq: 2400
   chkpt_every_iters: 250
+  chkpt_keep_latest: 3
   resume_warmup_log_iters: 20
   epochs: 50000000
   dynamic_lr:
     enabled: true
-    min_lr_ratio: 0.01
+    min_lr_ratio: 0.0001
     max_lr_ratio: 1.0
     window_iters: 300
+    trend_fast_iters: 50
+    trend_slow_iters: 300
     plateau_rel_improvement: 0.015
     breakthrough_rel_improvement: 0.08
     min_reward_scale: 1.0
+    peak_boost_min_ratio: 0.90
+    peak_stagnation_ratio: 0.88
     decay_factor: 0.75
     boost_factor: 1.15
     cooldown_iters: 250
@@ -55,7 +60,7 @@ training:
       vf_share_layers: false
     optimizer:
       type: adam
-    lr: 1.0e-3
+    lr: 1.0e-4
     use_critic: true
     use_gae: true
     lambda_: 0.92

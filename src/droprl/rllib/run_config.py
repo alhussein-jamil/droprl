@@ -18,6 +18,11 @@ def chkpt_freq_seconds(run_cfg: dict[str, Any]) -> float:
     return float(run_int(run_cfg, "chkpt_freq", "checkpoint_every_seconds", default=2400))
 
 
+def chkpt_keep_latest(run_cfg: dict[str, Any]) -> int:
+    """How many previous ``checkpoint_latest`` snapshots to retain (0 = disabled)."""
+    return max(0, run_int(run_cfg, "chkpt_keep_latest", "checkpoint_keep_latest", default=0))
+
+
 def render_every_seconds(run_cfg: dict[str, Any]) -> float:
     return float(run_int(run_cfg, "render_every", "render_every_seconds", default=600))
 

@@ -18,14 +18,17 @@ from droprl.logging import setup_logging
 from droprl.rllib.algorithms import build_algorithm, default_train_name, resolve_algorithm
 from droprl.rllib.lr_schedule import (
     apply_lr_to_trainer,
-    build_dynamic_lr_controller,
+    build_lr_scheduler,
+    load_lr_state,
     lr_state_path,
+    resolve_scheduler_type,
 )
 from droprl.rllib.registry import register_rllib_envs
 from droprl.rllib.resources import resolve_ray_config, resolve_training_section
 from droprl.rllib.run_config import (
     chkpt_every_iters,
     chkpt_freq_seconds,
+    chkpt_keep_latest,
     render_every_seconds,
     resolve_end_iter,
 )
@@ -122,11 +125,17 @@ def _save_latest_checkpoint(
     run_dir: Path,
     iteration: int,
     state: TrainingState,
-    lr_controller: Any,
+    lr_scheduler: Any,
     lr_path: Path,
+    keep_latest_backups: int = 0,
 ) -> None:
-    save_checkpoint(algo, latest_dir(run_dir), loop_iteration=iteration)
-    lr_controller.save_state(lr_path)
+    save_checkpoint(
+        algo,
+        latest_dir(run_dir),
+        loop_iteration=iteration,
+        keep_latest_backups=keep_latest_backups,
+    )
+    lr_scheduler.save_state(lr_path)
     write_state(
         run_dir,
         state,
@@ -184,6 +193,7 @@ def main() -> int:
     training_cfg = training_section.get("training", {})
     chkpt_every = chkpt_every_iters(run_cfg)
     chkpt_freq = chkpt_freq_seconds(run_cfg)
+    chkpt_keep = chkpt_keep_latest(run_cfg)
     render_every = render_every_seconds(run_cfg)
     render_on_best = bool(run_cfg.get("render_on_best", False))
 
@@ -214,17 +224,20 @@ def main() -> int:
             start_iter = 0
             state = TrainingState()
 
-    lr_controller = build_dynamic_lr_controller(run_cfg, training_cfg)
-    lr_path = lr_state_path(run_dir)
-    if will_resume and start_iter > 0:
-        lr_controller.load_state(lr_path)
-    apply_lr_to_trainer(algo, lr_controller.lr)
-
     end_iter, limit_mode = resolve_end_iter(
         run_cfg,
         start_iter=start_iter,
         cli_iters=args.iters,
     )
+    lr_scheduler = build_lr_scheduler(
+        run_cfg,
+        training_cfg,
+        total_iters=max(1, end_iter - start_iter),
+    )
+    lr_path = lr_state_path(run_dir)
+    if will_resume and start_iter > 0:
+        load_lr_state(lr_scheduler, run_dir)
+    apply_lr_to_trainer(algo, lr_scheduler.lr)
     if start_iter >= end_iter:
         log.warning("Nothing to train from iteration %d (limit=%d)", start_iter, end_iter)
         algo.stop()
@@ -255,7 +268,7 @@ def main() -> int:
     log.info(
         "task=%s train=%s algorithm=%s run=%s resume=%s start=%d end=%d limit=%s "
         "ray_cpus=%s ray_gpus=%s env_runners=%s chkpt_every=%d chkpt_freq=%ds "
-        "render_every=%ds dynamic_lr=%s lr=%.2e",
+        "chkpt_keep_latest=%d render_every=%ds lr_schedule=%s lr=%.2e",
         args.task,
         train_name,
         resolve_algorithm(config),
@@ -269,9 +282,10 @@ def main() -> int:
         training_section.get("env_runners", {}).get("num_env_runners"),
         chkpt_every,
         int(chkpt_freq),
+        chkpt_keep,
         int(render_every),
-        run_cfg.get("dynamic_lr", {}).get("enabled", False),
-        lr_controller.lr,
+        resolve_scheduler_type(run_cfg),
+        lr_scheduler.lr,
     )
 
     try:
@@ -286,7 +300,7 @@ def main() -> int:
 
             r = result.get("env_runners", {}).get("episode_return_mean")
             reward = float(r) if r is not None else float("-inf")
-            lr = lr_controller.observe(i, reward)
+            lr = lr_scheduler.observe(i, reward)
             apply_lr_to_trainer(algo, lr)
             log.info(
                 "iter=%d episode_return_mean=%.6g best=%.6g lr=%.2e",
@@ -309,8 +323,9 @@ def main() -> int:
                     run_dir=run_dir,
                     iteration=i,
                     state=state,
-                    lr_controller=lr_controller,
+                    lr_scheduler=lr_scheduler,
                     lr_path=lr_path,
+                    keep_latest_backups=chkpt_keep,
                 )
                 last_checkpoint_time = now
                 last_ckpt_iter = i
@@ -320,8 +335,9 @@ def main() -> int:
                     run_dir=run_dir,
                     iteration=i,
                     state=state,
-                    lr_controller=lr_controller,
+                    lr_scheduler=lr_scheduler,
                     lr_path=lr_path,
+                    keep_latest_backups=chkpt_keep,
                 )
                 last_checkpoint_time = now
                 last_ckpt_iter = i
@@ -334,7 +350,7 @@ def main() -> int:
 
             if is_new_best:
                 save_checkpoint(algo, best_dir(run_dir), loop_iteration=i)
-                lr_controller.save_state(lr_path)
+                lr_scheduler.save_state(lr_path)
 
             if stop_after_iter:
                 if last_ckpt_iter != i:
@@ -343,8 +359,9 @@ def main() -> int:
                         run_dir=run_dir,
                         iteration=i,
                         state=state,
-                        lr_controller=lr_controller,
+                        lr_scheduler=lr_scheduler,
                         lr_path=lr_path,
+                        keep_latest_backups=chkpt_keep,
                     )
                     last_ckpt_iter = i
                 log.info("Training stopped cleanly at iteration %d", i)
@@ -381,8 +398,9 @@ def main() -> int:
                 run_dir=run_dir,
                 iteration=state.iteration,
                 state=state,
-                lr_controller=lr_controller,
+                lr_scheduler=lr_scheduler,
                 lr_path=lr_path,
+                keep_latest_backups=chkpt_keep,
             )
     finally:
         if stop_after_iter and last_ckpt_iter < state.iteration:
@@ -391,8 +409,9 @@ def main() -> int:
                 run_dir=run_dir,
                 iteration=state.iteration,
                 state=state,
-                lr_controller=lr_controller,
+                lr_scheduler=lr_scheduler,
                 lr_path=lr_path,
+                keep_latest_backups=chkpt_keep,
             )
     algo.stop()
     ray.shutdown()

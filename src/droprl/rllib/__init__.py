@@ -8,6 +8,8 @@ from droprl.rllib.lr_schedule import (
     DynamicLRController,
     apply_lr_to_trainer,
     build_dynamic_lr_controller,
+    build_lr_scheduler,
+    list_schedulers,
 )
 from droprl.rllib.registry import register_rllib_envs
 
@@ -16,6 +18,8 @@ __all__ = [
     "apply_lr_to_trainer",
     "build_algorithm",
     "build_dynamic_lr_controller",
+    "build_lr_scheduler",
+    "list_schedulers",
     "default_train_name",
     "list_algorithms",
     "register_rllib_envs",
